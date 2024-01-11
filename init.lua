@@ -60,6 +60,123 @@ if not vim.loop.fs_stat(lazypath) then
 end
 vim.opt.rtp:prepend(lazypath)
 
+vim.opt.tabstop = 2       -- Set the width of a tab to 2 spaces
+vim.opt.shiftwidth = 2    -- Set the number of spaces to use for each step of (auto)indent
+vim.opt.expandtab = true  -- Convert tabs to spaces
+vim.opt.softtabstop = 2   -- Insert 2 spaces for a tab
+--vim.api.nvim_create_autocmd("BufEnter", {pattern = "*", command = "lcd %:p:h"})
+
+function CloseAllButCurrentAndNeotree()
+  local current_buf = vim.api.nvim_get_current_buf()
+  local buffers = vim.api.nvim_list_bufs()
+
+  for _, buf in ipairs(buffers) do
+      if vim.api.nvim_buf_is_valid(buf) and buf ~= current_buf then
+          local buftype = vim.api.nvim_buf_get_option(buf, 'buftype')
+          if buftype ~= 'nofile' then
+              vim.api.nvim_buf_delete(buf, { force = true })
+          end
+      end
+  end
+end
+
+-- Bind the function to a command for easy usage
+vim.cmd("command! CloseOtherBuffers lua CloseAllButCurrentAndNeotree()")
+vim.api.nvim_set_keymap('n', '<C-A-w>', '<cmd>lua CloseAllButCurrentAndNeotree()<CR>', { noremap = true, silent = true })
+
+
+function AddToRecentFiles()
+  local filePath = vim.fn.expand('%:p')
+  local dateCmd = "date --iso-8601=seconds"
+  local gioCmd = "gio set -t string " .. filePath .. " metadata::recent-info $(" .. dateCmd .. ")"
+  vim.fn.system(gioCmd)
+end
+
+vim.api.nvim_create_user_command('SR', AddToRecentFiles, {})
+
+local function make_recent()
+  local filepath = vim.fn.expand('%:p')
+  local uri = 'file://' .. filepath
+  local timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
+  local dateCmd = "date --iso-8601=seconds"
+  local gioCmd = "gio set -t string " .. filepath .. " metadata::recent-info $(" .. dateCmd .. ")"
+
+  vim.fn.system(gioCmd)
+
+  local new_entry = string.format(
+      '  <bookmark href="%s" added="%s" modified="%s" visited="%s">\n' ..
+      '    <info>\n' ..
+      '      <metadata owner="http://freedesktop.org">\n' ..
+      '        <mime:mime-type type="text/plain"/>\n' ..
+      '        <bookmark:applications>\n' ..
+      '          <bookmark:application name="Neovim" exec="nvim \'%s\'" modified="%s" count="1"/>\n' ..
+      '        </bookmark:applications>\n' ..
+      '      </metadata>\n' ..
+      '    </info>\n' ..
+      '  </bookmark>\n',
+      uri, timestamp, timestamp, timestamp, filepath, timestamp)
+
+  local recently_used_file = os.getenv("HOME") .. '/.local/share/recently-used.xbel'
+  local file = io.open(recently_used_file, "r+")
+  if file then
+      local content = file:read("*all")
+      
+      -- Check if the bookmark already exists
+      local escaped_uri = uri:gsub("([^%w])", "%%%1")
+      local pattern = '<bookmark href="' .. escaped_uri .. '"[^>]*>.-</bookmark>'
+      local exists = content:match(pattern)
+
+      -- print(pattern, exists)
+
+      if exists then
+          -- Update the existing bookmark
+          content = content:gsub(pattern, new_entry)
+      else
+          -- Insert a new bookmark
+          content = content:gsub('</xbel>', new_entry .. '</xbel>')
+      end
+
+      file:seek("set")
+      file:write(content)
+      file:close()
+  else
+      print("Error: Unable to open recently-used.xbel")
+  end
+end
+
+vim.api.nvim_create_user_command('MakeRecent', make_recent, {})
+vim.api.nvim_create_user_command('MR', make_recent, {})
+
+
+-- Scroll faster
+vim.api.nvim_set_keymap('n', '<C-j>', '4j', {noremap = true, silent = true})
+vim.api.nvim_set_keymap('n', '<C-k>', '4k', {noremap = true, silent = true})
+vim.api.nvim_set_keymap('v', '<C-j>', '4j', {noremap = true, silent = true})
+vim.api.nvim_set_keymap('v', '<C-k>', '4k', {noremap = true, silent = true})
+
+vim.api.nvim_set_keymap('n', '<C-A-j>', '8j', {noremap = true, silent = true})
+vim.api.nvim_set_keymap('n', '<C-A-k>', '8k', {noremap = true, silent = true})
+vim.api.nvim_set_keymap('v', '<C-A-j>', '8j', {noremap = true, silent = true})
+vim.api.nvim_set_keymap('v', '<C-A-k>', '8k', {noremap = true, silent = true})
+
+-- Move line or selection up with Alt+K
+vim.api.nvim_set_keymap("n", "<A-k>", ":m .-2<CR>", { noremap = true, silent = true })
+vim.api.nvim_set_keymap("v", "<A-k>", ":m '<-2<CR>gv=gv", { noremap = true, silent = true })
+
+-- Move line or selection down with Alt+J
+vim.api.nvim_set_keymap("n", "<A-j>", ":m .+1<CR>", { noremap = true, silent = true })
+vim.api.nvim_set_keymap("v", "<A-j>", ":m '>+1<CR>gv=gv", { noremap = true, silent = true })
+
+-- Additionally, you might want to keep the Alt+Arrow mappings
+-- Move line or selection up with Alt+Arrow Up
+vim.api.nvim_set_keymap("n", "<A-Up>", ":m .-2<CR>", { noremap = true, silent = true })
+vim.api.nvim_set_keymap("v", "<A-Up>", ":m '<-2<CR>gv=gv", { noremap = true, silent = true })
+
+-- Move line or selection down with Alt+Arrow Down
+vim.api.nvim_set_keymap("n", "<A-Down>", ":m .+1<CR>", { noremap = true, silent = true })
+vim.api.nvim_set_keymap("v", "<A-Down>", ":m '>+1<CR>gv=gv", { noremap = true, silent = true })
+
+
 -- [[ Configure plugins ]]
 -- NOTE: Here is where you install your plugins.
 --  You can configure plugins using the `config` key.
@@ -72,9 +189,6 @@ require('lazy').setup({
   -- Git related plugins
   'tpope/vim-fugitive',
   'tpope/vim-rhubarb',
-
-  -- Detect tabstop and shiftwidth automatically
-  'tpope/vim-sleuth',
 
   -- NOTE: This is where your plugins related to LSP can be installed.
   --  The configuration is done below. Search for lspconfig to find it below.
@@ -266,7 +380,7 @@ require('lazy').setup({
   --    Uncomment the following line and add your plugins to `lua/custom/plugins/*.lua` to get going.
   --
   --    For additional information see: https://github.com/folke/lazy.nvim#-structuring-your-plugins
-  -- { import = 'custom.plugins' },
+  { import = 'custom.plugins' },
 }, {})
 
 -- [[ Setting options ]]
@@ -423,7 +537,7 @@ vim.keymap.set('n', '<leader>sr', require('telescope.builtin').resume, { desc = 
 vim.defer_fn(function()
   require('nvim-treesitter.configs').setup {
     -- Add languages to be installed here that you want installed for treesitter
-    ensure_installed = { 'c', 'cpp', 'go', 'lua', 'python', 'rust', 'tsx', 'javascript', 'typescript', 'vimdoc', 'vim', 'bash' },
+    ensure_installed = { 'c', 'cpp', 'go', 'lua', 'python', 'rust', 'tsx', 'javascript', 'typescript', 'vimdoc', 'vim', 'bash', 'svelte', 'php' },
 
     -- Autoinstall languages that are not installed. Defaults to false (but you can change for yourself!)
     auto_install = false,
@@ -476,10 +590,10 @@ vim.defer_fn(function()
       swap = {
         enable = true,
         swap_next = {
-          ['<leader>a'] = '@parameter.inner',
+          -- ['<leader>a'] = '@parameter.inner',
         },
         swap_previous = {
-          ['<leader>A'] = '@parameter.inner',
+          -- ['<leader>A'] = '@parameter.inner',
         },
       },
     },
@@ -515,7 +629,7 @@ local on_attach = function(_, bufnr)
 
   -- See `:help K` for why this keymap
   nmap('K', vim.lsp.buf.hover, 'Hover Documentation')
-  nmap('<C-k>', vim.lsp.buf.signature_help, 'Signature Documentation')
+  nmap('<C-s>', vim.lsp.buf.signature_help, 'Signature Documentation')
 
   -- Lesser used LSP functionality
   nmap('gD', vim.lsp.buf.declaration, '[G]oto [D]eclaration')
