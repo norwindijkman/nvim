@@ -11,6 +11,18 @@ vim.api.nvim_set_keymap('n', '<A-t>', ':Neotree toggle reveal<CR>', {noremap = t
 vim.wo.relativenumber = true
 vim.o.scrolloff = 999
 
+-- Function to refresh git status using neo-tree
+local function refreshGitStatus()
+  -- Running the neo-tree git status refresh command
+  require('neo-tree.sources.git_status').refresh()
+
+  -- Schedule the next execution of this function after 1 second (1000 ms)
+  vim.defer_fn(refreshGitStatus, 500)
+end
+
+-- Start the recurring refreshGitStatus function after an initial delay of 4 seconds (4000 ms)
+vim.defer_fn(refreshGitStatus, 4000)
+
 return {
   "nvim-neo-tree/neo-tree.nvim",
   version = "*",
@@ -47,6 +59,23 @@ return {
             vim.cmd('setlocal relativenumber')
           end,
         },
+      },
+      default_component_configs = {
+	  git_status = {
+	     symbols = {
+		-- Change type
+		added     = "󰙴", 
+		deleted   = "󰩹",
+		modified  = "󰏫",
+		renamed   = "󰏫",
+		-- Status type
+		untracked = "󰙴",
+		ignored   = "",
+		unstaged  = "",
+		staged    = "",
+		conflict  = "",
+	     }
+	  }
       },
       filesystem = {
         window = {

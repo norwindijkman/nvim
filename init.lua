@@ -60,11 +60,11 @@ if not vim.loop.fs_stat(lazypath) then
 end
 vim.opt.rtp:prepend(lazypath)
 
-vim.opt.tabstop = 2       -- Set the width of a tab to 2 spaces
-vim.opt.shiftwidth = 2    -- Set the number of spaces to use for each step of (auto)indent
-vim.opt.expandtab = true  -- Convert tabs to spaces
-vim.opt.softtabstop = 2   -- Insert 2 spaces for a tab
---vim.api.nvim_create_autocmd("BufEnter", {pattern = "*", command = "lcd %:p:h"})
+-- vim.opt.tabstop = 2       -- Set the width of a tab to 2 spaces
+-- vim.opt.shiftwidth = 2    -- Set the number of spaces to use for each step of (auto)indent
+-- vim.opt.expandtab = true  -- Convert tabs to spaces
+-- vim.opt.softtabstop = 2   -- Insert 2 spaces for a tab
+-- vim.api.nvim_create_autocmd("BufEnter", {pattern = "*", command = "lcd %:p:h"})
 
 function CloseAllButCurrentAndNeotree()
   local current_buf = vim.api.nvim_get_current_buf()
@@ -83,7 +83,10 @@ end
 -- Bind the function to a command for easy usage
 vim.cmd("command! CloseOtherBuffers lua CloseAllButCurrentAndNeotree()")
 vim.api.nvim_set_keymap('n', '<C-A-w>', '<cmd>lua CloseAllButCurrentAndNeotree()<CR>', { noremap = true, silent = true })
-
+vim.api.nvim_create_autocmd({"BufRead", "BufNewFile"}, {
+  pattern = {"*.inc"},
+  command = "setfiletype php",
+})
 
 function AddToRecentFiles()
   local filePath = vim.fn.expand('%:p')
@@ -538,7 +541,9 @@ vim.defer_fn(function()
   require('nvim-treesitter.configs').setup {
     -- Add languages to be installed here that you want installed for treesitter
     ensure_installed = { 'c', 'cpp', 'go', 'lua', 'python', 'rust', 'tsx', 'javascript', 'typescript', 'vimdoc', 'vim', 'bash', 'svelte', 'php' },
-
+    filetype_to_parsername = {
+        inc = "php",
+    },
     -- Autoinstall languages that are not installed. Defaults to false (but you can change for yourself!)
     auto_install = false,
 
